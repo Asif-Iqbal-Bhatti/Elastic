@@ -22,6 +22,7 @@
 Example of parallel volume scan using VASP calculator and parcalc module.
 '''
 
+
 from ase.lattice.spacegroup import crystal
 from parcalc import ClusterVasp, ParCalculate
 import ase.units as units
@@ -56,10 +57,8 @@ calc.set(prec = 'Accurate',
 # Not all calculators have this type of internal minimizer!
 calc.set(isif=3)
 
-print "Running initial optimization ... ",
-print "Residual pressure: %.3f bar" % (
-            cryst.get_isotropic_pressure(cryst.get_stress()))
-
+from ase.lattice.spacegroup import crystal
+from ase.lattice.spacegroup import crystal
 # Lets extract optimized lattice constant.
 # MgO is cubic so a is a first diagonal element of lattice matrix
 a=cryst.get_cell()[0,0]
@@ -67,11 +66,15 @@ a=cryst.get_cell()[0,0]
 # Clean up the directory
 calc.clean()
 
-sys=[]
-# Iterate over lattice constant in the +/-5% range
-for av in numpy.linspace(a*0.95,a*1.05,5):
-    sys.append(crystal(['Mg', 'O'], [(0, 0, 0), (0.5, 0.5, 0.5)],
-                spacegroup=225, cellpar=[av, av, av, 90, 90, 90]))
+sys = [
+    crystal(
+        ['Mg', 'O'],
+        [(0, 0, 0), (0.5, 0.5, 0.5)],
+        spacegroup=225,
+        cellpar=[av, av, av, 90, 90, 90],
+    )
+    for av in numpy.linspace(a * 0.95, a * 1.05, 5)
+]
 
 # Define the template calculator for this run
 # We can use the calc from above. It is only used as a template.

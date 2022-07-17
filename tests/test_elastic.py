@@ -16,19 +16,21 @@ if __name__ == '__main__':
     import elastic
     from elastic import Crystal, BMEOS
     from parcalc import ClusterVasp, ClusterSiesta, ParCalculate
-
 # You can specify the directory with prepared VASP crystal for the test run
 # or run through all prepared cases.
-    if len(sys.argv)>1 :
-        crystals=[crystal(ase.io.read(sys.argv[1]+'/CONTCAR'))]
-    else :
-        # Pre-cooked test cases
-        crystals=[]
-
+    if len(sys.argv)>1:
+        crystals = [crystal(ase.io.read(f'{sys.argv[1]}/CONTCAR'))]
+    else:
         # Cubic
         a = 4.194
-        crystals.append(crystal(['Mg', 'O'], [(0, 0, 0), (0.5, 0.5, 0.5)],
-            spacegroup=225, cellpar=[a, a, a, 90, 90, 90]))
+        crystals = [
+            crystal(
+                ['Mg', 'O'],
+                [(0, 0, 0), (0.5, 0.5, 0.5)],
+                spacegroup=225,
+                cellpar=[a, a, a, 90, 90, 90],
+            )
+        ]
 #        a = 4.194
 #        crystals.append(Crystal(crystal(['Ti', 'C'], [(0, 0, 0), (0.5, 0.5, 0.5)],
 #            spacegroup=225, cellpar=[a, a, a, 90, 90, 90])))
@@ -47,7 +49,7 @@ if __name__ == '__main__':
     print("Running tests")
     # Iterate over all crystals.
     # We do not paralelize over test cases for clarity.
-    for cryst in crystals[:] :
+    for cryst in crystals[:]:
 
 
         # Setup the calculator
@@ -144,18 +146,17 @@ if __name__ == '__main__':
 
         # Now let us do it (only c11 and c12) by hand
         sys=[]
-        for d in linspace(-0.5,0.5,6):
-            sys.append(cryst.get_cart_deformed_cell(axis=0,size=d))
+        sys.extend(
+            cryst.get_cart_deformed_cell(axis=0, size=d)
+            for d in linspace(-0.5, 0.5, 6)
+        )
+
         r=ParCalculate(sys,cryst.get_calculator())
-        ss=[]
-        for s in r:
-            ss.append([s.get_strain(cryst), s.get_stress()])
+        ss = [[s.get_strain(cryst), s.get_stress()] for s in r]
         # Plot strain-stress relation
         figure(3)
 
-        ss=[]
-        for p in r:
-            ss.append([p.get_strain(cryst),p.get_stress()])
+        ss = [[p.get_strain(cryst),p.get_stress()] for p in r]
         ss=array(ss)
         lo=min(ss[:,0,0])
         hi=max(ss[:,0,0])
@@ -178,7 +179,6 @@ if __name__ == '__main__':
         axvline(0,ls='--')
         axhline(0,ls='--')
         draw()
-
 #        # Now make a short scan over pressures
 #
 #        # Switch just shape+IDOF optimization

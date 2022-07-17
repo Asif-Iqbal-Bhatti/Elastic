@@ -131,26 +131,17 @@ class ClusterVasp(Vasp):
         success of the calculation. This is totally tied to
         implementation and you need to implement your own scheme!
         '''
-        #print_stack(limit=5)
-        if not self.calc_running :
+        if not self.calc_running:
             #print('Calc running:',self.calc_running)
             return True
-        else:
-            # The calc is marked as running check if this is still true
-            # We do it by external scripts. You need to write these
-            # scripts for your own system.
-            # See examples/scripts directory for examples.
-            with work_dir(self.working_dir) :
-                o=check_output(['check-job'])
+        # The calc is marked as running check if this is still true
+        # We do it by external scripts. You need to write these
+        # scripts for your own system.
+        # See examples/scripts directory for examples.
+        with work_dir(self.working_dir) :
+            o=check_output(['check-job'])
             #print('Status',o)
-            if o[0] in b'R' :
-                # Still running - we do nothing to preserve the state
-                return False
-            else :
-                # The job is not running maybe it finished maybe crashed
-                # We hope for the best at this point ad pass to the
-                # Standard update function
-                return True
+        return o[0] not in b'R'
 
     def set(self,**kwargs):
         if 'block' in kwargs :
@@ -171,11 +162,11 @@ class ClusterVasp(Vasp):
             Vasp.clean(self)
 
     def update(self, atoms):
-        if self.calc_running :
+        if self.calc_running:
             # we have started the calculation and have
             # nothing to read really. But we need to check
             # first if this is still true.
-            if  self.calc_finished():
+            if self.calc_finished():
                 # We were running but recently finished => read the results
                 # This is a piece of copy-and-paste programming
                 # This is a copy of code from Vasp.calculate
@@ -189,9 +180,7 @@ class ClusterVasp(Vasp):
                         atoms.cell = atoms_sorted.cell
                     self.converged = self.read_convergence()
                     Vasp.set_results(self,atoms)
-                return
-            else :
-                return
+            return
         # We are not in the middle of calculation.
         # Update as normal
         Vasp.update(self, atoms)
@@ -361,9 +350,9 @@ class RemoteCalculator(Calculator):
         Create a remote execution calculator based on actual ASE calculator 
         calc.
         '''
-        logging.debug("Calc: %s Label: %s" % (calc, label))
+        logging.debug(f"Calc: {calc} Label: {label}")
         Calculator.__init__(self, restart, ignore_bad_restart_file, label, atoms, **kwargs)
-        logging.debug("Dir: %s Ext: %s" % (self.directory, self.ext))
+        logging.debug(f"Dir: {self.directory} Ext: {self.ext}")
         self.calc=calc
         self.jobid=None
         self.block=block
@@ -419,7 +408,7 @@ class RemoteCalculator(Calculator):
             # Unknown state. We assume it has finished and continue
             state='N'
 
-        return not (state in ['Q','R'])
+        return state not in {'Q', 'R'}
 
 
     def run_calculation(self, atoms=None, properties=['energy'],
@@ -450,7 +439,7 @@ class RemoteCalculator(Calculator):
             errorcode=e.returncode
         finally:
             os.chdir(olddir)
-        
+
         if errorcode:
             raise RuntimeError('%s returned an error: %d' %
                                (self.name, errorcode))
@@ -462,14 +451,13 @@ class RemoteCalculator(Calculator):
         
         if self.submited:
             # The job has been submitted. Check the state.
-            if not self.job_ready() :
-                if self.block :
-                    while not self.job_ready() :
-                        time.sleep(self.job_check_time)
-                else :
+            if not self.job_ready():
+                if not self.block:
                     raise CalcNotReadyError
-                    
 
+
+                while not self.job_ready() :
+                    time.sleep(self.job_check_time)
             # Assume the calc finished. Copy the files back.
             subprocess.call(self.copy_in_cmd % {
                 'ldir': self.wdir,
@@ -477,24 +465,23 @@ class RemoteCalculator(Calculator):
                 'user': self.parameters['user'],
                 'host': self.parameters['host']
             }, shell=True)
-                
-        
+
+
         fn=os.path.join(self.directory,'pw.out')
         # Read the pan-ultimate line of the output file
         try: 
             ln=open(fn).readlines()[-2]
-            if ln.find('JOB DONE.')>-1 :
-                # Job is done we can read the output
-                r=read_quantumespresso_textoutput(fn)
-                self.submited=False
-                self.jobid=None
-            else :
+            if ln.find('JOB DONE.') <= -1:
                 # Job not ready.
                 raise CalcNotReadyError
+            # Job is done we can read the output
+            r=read_quantumespresso_textoutput(fn)
+            self.submited=False
+            self.jobid=None
         except (IOError, IndexError) :
             # Job not ready.
             raise CalcNotReadyError
-        
+
         # All is fine - really read the results
         self.calc.read_results(self)
 
@@ -582,12 +569,10 @@ def ParCalculate(systems,calc,cleanup=True,block=True,prefix="Calc_"):
     The resulting objects are returned in the list (one per input system).
     '''
 
-    if type(systems) != type([]) :
-        sysl=[systems]
-    else :
-        sysl=systems
-
-    if block :
+    sysl = [systems] if type(systems) != type([]) else systems
+       # Collect the results
+    res=[]
+    if block:
         iq=Queue(len(sysl)+1)
         oq=Queue(len(sysl)+1)
 
@@ -604,17 +589,14 @@ def ParCalculate(systems,calc,cleanup=True,block=True,prefix="Calc_"):
         if verbose :
             print("Workers started:", len(sysl))
 
-       # Collect the results
-        res=[]
         while len(res)<len(sysl) :
             n,s=oq.get()
             res.append([n,s])
             #print("Got from oq:", n, s.get_volume(), s.get_pressure())
-    else :
+    else:
         # We do not need the multiprocessing complications for non-blocking
         # workers. We just run all in sequence.
         basedir=os.getcwd()
-        res=[]
         for n,s in enumerate(sysl):
             s.set_calculator(deepcopy(calc))
             s.get_calculator().block=block
@@ -666,10 +648,15 @@ if __name__ == '__main__':
     print("Residual pressure: %.3f GPa" % (MgO.get_pressure()/GPa))
     calc.clean()
 
-    systems=[]
-    for av in numpy.linspace(a*0.95,a*1.05,5):
-        systems.append(crystal(['Mg', 'O'], [(0, 0, 0), (0.5, 0.5, 0.5)], spacegroup=225,
-                   cellpar=[av, av, av, 90, 90, 90]))
+    systems = [
+        crystal(
+            ['Mg', 'O'],
+            [(0, 0, 0), (0.5, 0.5, 0.5)],
+            spacegroup=225,
+            cellpar=[av, av, av, 90, 90, 90],
+        )
+        for av in numpy.linspace(a * 0.95, a * 1.05, 5)
+    ]
 
     pcalc=ClusterVasp(nodes=1,ppn=8)
     pcalc.set(prec = 'Accurate', xc = 'PBE', lreal = False, isif=2, nsw=20, ibrion=2, kpts=[1,1,1])

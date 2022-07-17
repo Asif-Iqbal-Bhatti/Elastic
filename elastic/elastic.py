@@ -333,8 +333,8 @@ def get_lattice_type(cryst):
 
     sg = spg.get_spacegroup(cryst)
     m = re.match(r'([A-Z].*\b)\s*\(([0-9]*)\)', sg)
-    sg_name = m.group(1)
-    sg_nr = int(m.group(2))
+    sg_name = m[1]
+    sg_nr = int(m[2])
 
     for n, l in enumerate(lattice_types):
         if sg_nr < l[0]:
@@ -472,13 +472,17 @@ def get_elementary_deformations(cryst, n=5, d=2):
     systems = []
     for a in axis:
         if a < 3:  # tetragonal deformation
-            for dx in linspace(-d, d, n):
-                systems.append(
-                        get_cart_deformed_cell(cryst, axis=a, size=dx))
+            systems.extend(
+                get_cart_deformed_cell(cryst, axis=a, size=dx)
+                for dx in linspace(-d, d, n)
+            )
+
         elif a < 6:  # sheer deformation (skip the zero angle)
-            for dx in linspace(d/10.0, d, n):
-                systems.append(
-                        get_cart_deformed_cell(cryst, axis=a, size=dx))
+            systems.extend(
+                get_cart_deformed_cell(cryst, axis=a, size=dx)
+                for dx in linspace(d / 10.0, d, n)
+            )
+
     return systems
 
 
@@ -611,7 +615,7 @@ def scan_volumes(cryst, lo=0.98, hi=1.02, n=5, scale_volumes=True):
     if scale_volumes:
         scale **= (1.0/3.0)
     uc = cryst.get_cell()
-    systems = [Atoms(cryst) for s in scale]
+    systems = [Atoms(cryst) for _ in scale]
     for n, s in enumerate(scale):
         systems[n].set_cell(s*uc, scale_atoms=True)
     return systems
@@ -686,13 +690,12 @@ def get_cart_deformed_cell(base_cryst, axis=0, size=1):
     L = diag(ones(3))
     if axis < 3:
         L[axis, axis] += s
+    elif axis == 3:
+        L[1, 2] += s
+    elif axis == 4:
+        L[0, 2] += s
     else:
-        if axis == 3:
-            L[1, 2] += s
-        elif axis == 4:
-            L[0, 2] += s
-        else:
-            L[0, 1] += s
+        L[0, 1] += s
     uc = dot(uc, L)
     cryst.set_cell(uc, scale_atoms=True)
     # print(cryst.get_cell())
@@ -743,7 +746,7 @@ if __name__ == '__main__':
     sl = get_elementary_deformations(cryst)
     print('Structures: ')
     print('   Vol             A       B       C          alph    bet     gam')
-    for n, c in enumerate(sl):
+    for c in sl:
         print('%.4f (%5.1f%%)' % (c.get_volume(),
                                   100*c.get_volume()/cryst.get_volume()),
               end='')

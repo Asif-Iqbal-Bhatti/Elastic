@@ -23,6 +23,7 @@ Example of elastic tensor calculation using VASP calculator and
 elastic module.
 '''
 
+
 from ase.lattice.spacegroup import crystal
 from parcalc import ClusterVasp, ParCalculate
 from elastic import Crystal
@@ -60,10 +61,8 @@ calc.set(prec = 'Accurate',
 # Not all calculators have this type of internal minimizer!
 calc.set(isif=3)
 
-print "Running initial optimization ... ",
-print "Residual pressure: %.3f bar" % (
-            cryst.get_isotropic_pressure(cryst.get_stress()))
-
+from ase.lattice.spacegroup import crystal
+from ase.lattice.spacegroup import crystal
 # Clean up the directory
 calc.clean()
 
@@ -72,23 +71,18 @@ calc.set(isif=2)
 
 # Elastic tensor by internal routine
 Cij, Bij=cryst.get_elastic_tensor(n=5,d=0.2)
-print "Cij (GPa):", Cij/units.GPa
-
-
+from ase.lattice.spacegroup import crystal
 # Now let us do it (only c11 and c12) by hand
 # with 3rd order polynomial fitting the points.
-sys=[]
-for d in linspace(-0.2,0.2,10):
-    sys.append(cryst.get_cart_deformed_cell(axis=0,size=d))
-r=ParCalculate(sys,cryst.calc)
-ss=[]
-for s in r:
-    ss.append([s.get_strain(cryst), s.get_stress()])
+sys = [
+    cryst.get_cart_deformed_cell(axis=0, size=d)
+    for d in linspace(-0.2, 0.2, 10)
+]
 
+r=ParCalculate(sys,cryst.calc)
+ss = [[s.get_strain(cryst), s.get_stress()] for s in r]
 # Plot strain-stress relation
-ss=[]
-for p in r:
-    ss.append([p.get_strain(cryst),p.get_stress()])
+ss = [[p.get_strain(cryst),p.get_stress()] for p in r]
 ss=array(ss)
 lo=min(ss[:,0,0])
 hi=max(ss[:,0,0])
@@ -112,7 +106,6 @@ f=numpy.polyfit(ss[:,0,0],ss[:,1,1],3)
 c12=f[-2]/units.GPa
 plt.plot(xa,numpy.polyval(f,xa),'g-')
 
-print 'C11 = %.3f GPa, C12 = %.3f GPa => K= %.3f GPa' % (c11, c12, (c11+2*c12)/3)
-
+from ase.lattice.spacegroup import crystal
 plt.show()
 

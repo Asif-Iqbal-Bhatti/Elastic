@@ -53,10 +53,15 @@ calc.clean()
 
 banner('Volume scan on MgO (+/- 5%)')
 
-systems=[]
-for av in numpy.linspace(a*0.95,a*1.05,5):
-    systems.append(crystal(['Mg', 'O'], [(0, 0, 0), (0.5, 0.5, 0.5)], spacegroup=225,
-               cellpar=[av, av, av, 90, 90, 90]))
+systems = [
+    crystal(
+        ['Mg', 'O'],
+        [(0, 0, 0), (0.5, 0.5, 0.5)],
+        spacegroup=225,
+        cellpar=[av, av, av, 90, 90, 90],
+    )
+    for av in numpy.linspace(a * 0.95, a * 1.05, 5)
+]
 
 pcalc=ClusterVasp(nodes=1,ppn=8)
 pcalc.set(prec = 'Accurate', xc = 'PBE', lreal = False, isif=2, nsw=20, ibrion=2, kpts=[1,1,1])
@@ -75,16 +80,19 @@ show()
 
 # You can specify the directory with prepared VASP crystal for the test run
 # or run through all prepared cases.
-if len(sys.argv)>1 :
-    crystals=[crystal(ase.io.read(sys.argv[1]+'/CONTCAR'))]
-else :
-    # Pre-cooked test cases
-    crystals=[]
-
+if len(sys.argv)>1:
+    crystals = [crystal(ase.io.read(f'{sys.argv[1]}/CONTCAR'))]
+else:
     # Cubic
     a = 4.194
-    crystals.append(crystal(['Mg', 'O'], [(0, 0, 0), (0.5, 0.5, 0.5)],
-        spacegroup=225, cellpar=[a, a, a, 90, 90, 90]))
+    crystals = [
+        crystal(
+            ['Mg', 'O'],
+            [(0, 0, 0), (0.5, 0.5, 0.5)],
+            spacegroup=225,
+            cellpar=[a, a, a, 90, 90, 90],
+        )
+    ]
 #        a = 4.194
 #        crystals.append(Crystal(crystal(['Ti', 'C'], [(0, 0, 0), (0.5, 0.5, 0.5)],
 #            spacegroup=225, cellpar=[a, a, a, 90, 90, 90])))
@@ -103,11 +111,13 @@ else :
 banner("Running tests for Elastic")
 # Iterate over all crystals.
 # We do not paralelize over test cases for clarity.
-for cryst in crystals[:] :
+for cryst in crystals[:]:
 
     cryst.get_lattice_type()
-    banner('Calculating: %s, %s, %s' %
-            (cryst.get_chemical_formula(), cryst.bravais, cryst.sg_name))
+    banner(
+        f'Calculating: {cryst.get_chemical_formula()}, {cryst.bravais}, {cryst.sg_name}'
+    )
+
     # Setup the calculator
     calc=ClusterVasp(nodes=1,ppn=8)
     cryst.set_calculator(calc)
@@ -214,18 +224,17 @@ for cryst in crystals[:] :
 
     # Now let us do it (only c11 and c12) by hand
     sys=[]
-    for d in linspace(-0.5,0.5,6):
-        sys.append(cryst.get_cart_deformed_cell(axis=0,size=d))
+    sys.extend(
+        cryst.get_cart_deformed_cell(axis=0, size=d)
+        for d in linspace(-0.5, 0.5, 6)
+    )
+
     r=ParCalculate(sys,cryst.calc)
-    ss=[]
-    for s in r:
-        ss.append([s.get_strain(cryst), s.get_stress()])
+    ss = [[s.get_strain(cryst), s.get_stress()] for s in r]
     # Plot strain-stress relation
     figure(3)
 
-    ss=[]
-    for p in r:
-        ss.append([p.get_strain(cryst),p.get_stress()])
+    ss = [[p.get_strain(cryst),p.get_stress()] for p in r]
     ss=array(ss)
     lo=min(ss[:,0,0])
     hi=max(ss[:,0,0])

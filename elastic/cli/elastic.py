@@ -97,7 +97,7 @@ def gen(ctx, num, lo, hi, size, struct):
     if verbose:
         from elastic.elastic import get_lattice_type
         nr, brav, sg, sgn = get_lattice_type(cryst)
-        echo('%s lattice (%s): %s' % (brav, sg, cryst.get_chemical_formula()))
+        echo(f'{brav} lattice ({sg}): {cryst.get_chemical_formula()}')
         if action == 'cij':
             echo('Generating {:d} deformations of {:.1f}(%/degs.) per axis'.format(
                     num, size))
